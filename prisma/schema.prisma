@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model usuarios {
+  id                 Int       @id @default(autoincrement())
+  fechahora          DateTime? @db.DateTime(0)
+  nombre             String?   @db.MediumText
+  usuario            String    @unique(map: "uk_usuario") @db.VarChar(50)
+  pass               String    @db.Char(60)
+  puesto             String?   @db.MediumText
+  rol                String    @default("promotor") @db.VarChar(20)
+  id_sucursal        Int?
+  id_sector          String?   @db.MediumText
+  zona               String?   @db.MediumText
+  estatus            String    @default("ACTIVO") @db.VarChar(10)
+  ine                String?   @db.MediumText
+  sueldo             Float     @default(0)
+  gas                Float     @default(0)
+  calle              String?   @db.MediumText
+  numero             String?   @db.MediumText
+  colonia            String?   @db.MediumText
+  motivo_baja        String?   @db.MediumText
+  fecha_contratacion DateTime? @db.Date
+  fecha_bajaempleado DateTime? @db.Date
+  telefono           String?   @db.VarChar(10)
+  nombre_aval        String?   @db.VarChar(90)
+  calle_aval         String?   @db.VarChar(99)
+  exterior_aval      String?   @db.VarChar(10)
+  interior_aval      String?   @db.VarChar(10)
+  colonia_aval       String?   @db.VarChar(90)
+  ciudad_aval        String?   @db.VarChar(90)
+  porcentaje         String?   @db.VarChar(2)
+  cajaAhorro         String?   @db.VarChar(2)
+  fecha_caja         DateTime? @db.Date
+  telefono_aval      String?   @db.VarChar(10)
+  expediente         String?   @db.VarChar(255)
+  fechanac           DateTime? @db.Date
+  fecha_cambio       DateTime? @db.Date
+  categoria          String?   @db.VarChar(10)
+  curp               String?   @db.VarChar(18)
+  token_version      Int       @default(0)
+  ultimo_login       DateTime? @db.DateTime(0)
+  intentos_fallidos  Int       @default(0)
+  bloqueado_hasta    DateTime? @db.DateTime(0)
+}
