@@ -2,8 +2,10 @@ import express from "express";
 import authRoutes from "./routes/auth.routes.js";
 import "dotenv/config";
 import usuariosRoutes from "./routes/usuarios.routes.js";
+import clientesRoutes from "./routes/clientes.routes.js"
 import helmet from "helmet";
 import cors from "cors";
+
 
 
 const app = express();
@@ -14,7 +16,7 @@ app.use(express.json());
 
 app.use("/api/auth", authRoutes);
 app.use("/api",usuariosRoutes);
-
+app.use("/api", clientesRoutes);
 const PORT = 3000;
 
 app.listen(PORT, () => {

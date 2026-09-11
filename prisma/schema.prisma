@@ -48,3 +48,290 @@ model usuarios {
   intentos_fallidos  Int       @default(0)
   bloqueado_hasta    DateTime? @db.DateTime(0)
 }
+
+// ============================================================
+
+//  PERSONAS — tabla ancla
+
+//  "Cliente" y "aval" son roles que cuelgan de aquí, no tablas
+
+//  separadas: una misma persona puede ser ambas cosas.
+
+// ============================================================
+ 
+model personas {
+
+  id            Int       @id @default(autoincrement())
+
+  // ID en el sistema viejo (clientes.id). Imprescindible para
+
+  // reconstruir relaciones durante la migración.
+
+  id_legacy     Int?      @unique(map: "uk_personas_legacy")
+ 
+  // Sin @unique todavía: la tabla vieja tiene CURPs vacías y
+
+  // repetidas. La unicidad se valida en el backend y se agrega
+
+  // como constraint DESPUÉS de limpiar la migración.
+
+  curp          String?   @db.VarChar(18)
+ 
+  nombre        String    @db.VarChar(200)
+
+  // Copia de nombre en MAYÚSCULAS y sin acentos, para búsquedas
+
+  // rápidas por prefijo. La mantiene el backend al guardar.
+
+  nombre_busq   String    @db.VarChar(200)
+ 
+  fecha_nac     DateTime? @db.Date
+
+  sexo          String?   @db.VarChar(20)
+
+  rfc           String?   @db.VarChar(13)
+
+  ocupacion     String?   @db.VarChar(200)
+
+  estado_civil  String?   @db.VarChar(40)
+
+  email         String?   @db.VarChar(200)
+ 
+  tel_principal String?   @db.VarChar(20)
+
+  tel_2         String?   @db.VarChar(20)
+
+  tel_3         String?   @db.VarChar(20)
+ 
+  fecha_alta    DateTime  @default(now()) @db.DateTime(0)
+
+  usuario_alta  String?   @db.VarChar(60)
+ 
+  cliente       clientes?
+
+  domicilios    persona_domicilio[]
+
+  avala_a       relaciones_aval[]   @relation("PersonaAval")
+
+  lista_negra   lista_negra[]
+ 
+  @@index([curp], map: "ix_personas_curp")
+
+  @@index([nombre_busq], map: "ix_personas_nombre")
+
+}
+ 
+// ============================================================
+
+//  DOMICILIOS
+
+//  Tabla propia para que varias personas puedan compartir uno
+
+//  ("el domicilio arroja aval y cliente").
+
+// ============================================================
+ 
+model domicilios {
+
+  id            Int      @id @default(autoincrement())
+ 
+  calle         String   @db.VarChar(200)
+
+  numero_ext    String?  @db.VarChar(20)
+
+  numero_int    String?  @db.VarChar(20)
+
+  colonia       String?  @db.VarChar(200)
+
+  cp            String?  @db.VarChar(10)
+
+  municipio     String?  @db.VarChar(120)
+
+  estado        String?  @db.VarChar(120)
+
+  entre_calles  String?  @db.VarChar(255)
+
+  tipo_vivienda String?  @db.VarChar(60)
+ 
+  // Calle normalizada (mayúsculas, sin acentos) para búsqueda.
+
+  calle_busq    String   @db.VarChar(200)
+ 
+  fecha_alta    DateTime @default(now()) @db.DateTime(0)
+ 
+  personas      persona_domicilio[]
+ 
+  @@index([calle_busq, numero_ext], map: "ix_domicilios_calle_num")
+
+  @@index([colonia], map: "ix_domicilios_colonia")
+
+}
+ 
+model persona_domicilio {
+
+  id           Int       @id @default(autoincrement())
+
+  id_persona   Int
+
+  id_domicilio Int
+ 
+  tipo         String    @default("PARTICULAR") @db.VarChar(30)
+
+  vigente      Boolean   @default(true)
+
+  desde        DateTime? @db.Date
+
+  hasta        DateTime? @db.Date
+ 
+  persona      personas   @relation(fields: [id_persona], references: [id])
+
+  domicilio    domicilios @relation(fields: [id_domicilio], references: [id])
+ 
+  @@index([id_persona], map: "ix_pd_persona")
+
+  @@index([id_domicilio], map: "ix_pd_domicilio")
+
+}
+ 
+// ============================================================
+
+//  CLIENTES — el rol "cliente" de una persona
+
+// ============================================================
+ 
+model clientes {
+
+  id             Int      @id @default(autoincrement())
+
+  id_persona     Int      @unique(map: "uk_clientes_persona")
+ 
+  // Folio de negocio, heredado y siempre creciente. Arranca en
+
+  // 23500 para no chocar con los 23,491 del sistema viejo.
+
+  numero_cliente Int      @unique(map: "uk_clientes_numero")
+ 
+  zona           String?  @db.VarChar(10)
+
+  sector         String?  @db.VarChar(10)
+
+  estatus        String   @default("ACTIVO") @db.VarChar(20)
+ 
+  // Semáforo del sistema viejo (clientes.color, default BLANCO).
+
+  // Base para la futura calificación del cliente.
+
+  color          String   @default("BLANCO") @db.VarChar(16)
+ 
+  observaciones  String?  @db.VarChar(500)
+
+  fecha_alta     DateTime @default(now()) @db.DateTime(0)
+
+  usuario_alta   String?  @db.VarChar(60)
+ 
+  persona        personas @relation(fields: [id_persona], references: [id])
+
+  avales         relaciones_aval[] @relation("ClienteAvalado")
+ 
+  @@index([zona, sector], map: "ix_clientes_zona_sector")
+
+  @@index([estatus], map: "ix_clientes_estatus")
+
+}
+ 
+// ============================================================
+
+//  RELACIONES AVAL
+
+//  id_credito es NULLABLE a propósito: permite capturar el aval
+
+//  durante el alta del cliente, antes de que exista el crédito.
+
+//  Reglas validadas en el backend (no en la BD):
+
+//    - máximo 2 avales vigentes por crédito
+
+//    - máximo 2 clientes avalados por persona
+
+//    - nadie puede avalarse a sí mismo
+
+// ============================================================
+ 
+model relaciones_aval {
+
+  id               Int       @id @default(autoincrement())
+
+  id_persona_aval  Int
+
+  id_cliente       Int
+ 
+  // Se llena cuando exista el módulo de créditos. En la migración
+
+  // se reconstruye desde creditos.curpaval / curpaval2.
+
+  id_credito       Int?
+
+  id_credito_legacy Int?
+ 
+  parentesco       String?   @db.VarChar(60)
+
+  vigente          Boolean   @default(true)
+
+  fecha_inicio     DateTime  @default(now()) @db.DateTime(0)
+
+  fecha_fin        DateTime? @db.DateTime(0)
+
+  usuario_alta     String?   @db.VarChar(60)
+ 
+  aval             personas  @relation("PersonaAval", fields: [id_persona_aval], references: [id])
+
+  cliente          clientes  @relation("ClienteAvalado", fields: [id_cliente], references: [id])
+ 
+  @@index([id_persona_aval, vigente], map: "ix_aval_persona")
+
+  @@index([id_cliente, vigente], map: "ix_aval_cliente")
+
+  @@index([id_credito], map: "ix_aval_credito")
+
+}
+ 
+// ============================================================
+
+//  LISTA NEGRA
+
+//  Apunta a persona, no a cliente: así también se puede vetar a
+
+//  alguien que solo ha sido aval. (La tabla vieja `listanegra`
+
+//  solo referenciaba id_cliente, y ese era el hueco.)
+
+// ============================================================
+ 
+model lista_negra {
+
+  id            Int       @id @default(autoincrement())
+
+  id_persona    Int
+
+  id_legacy     Int?
+ 
+  motivo        String    @db.VarChar(500)
+
+  activa        Boolean   @default(true)
+
+  fecha_alta    DateTime  @default(now()) @db.DateTime(0)
+
+  usuario_alta  String    @db.VarChar(60)
+
+  fecha_baja    DateTime? @db.DateTime(0)
+
+  usuario_baja  String?   @db.VarChar(60)
+
+  motivo_baja   String?   @db.VarChar(500)
+ 
+  persona       personas  @relation(fields: [id_persona], references: [id])
+ 
+  @@index([id_persona, activa], map: "ix_ln_persona")
+
+}
+ 

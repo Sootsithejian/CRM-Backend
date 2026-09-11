@@ -1,0 +1,16 @@
+export const NUMERO_CLIENTE_INICIAL = 23500;
+
+export const MAX_AVALES_POR_CREDITO = 2;
+export const MAX_CLIENTES_AVALADOS_POR_PERSONA = 2;
+
+export const ESTATUS_CLIENTE = {
+    ACTIVO: "ACTIVO",
+    INACTIVO: "INACTIVO",
+    BAJA: "BAJA"
+} as const;
+
+export const TIPO_DOMICILIO = {
+    PARTICULAR: "PARTICULAR",
+    TRABAJO: "TRABAJO",
+    FAMILIAR: "FAMILIAR",
+} as const;
